@@ -8,6 +8,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { qrTicketRouter } from './server/qrTickets';
 
 dotenv.config();
 
@@ -18,6 +19,9 @@ const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json({ limit: '1mb' }));
+
+// Secure QR ticket issue, verification and check-in endpoints.
+app.use('/api/qr', qrTicketRouter);
 
 // --- API Endpoints ---
 
