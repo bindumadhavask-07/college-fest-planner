@@ -18,8 +18,8 @@ Built for Indian engineering colleges (IITs, NITs, BITS, and technical universit
   - Interactive Recharts breakdown by category (Tech Infrastructure, Prizes, Stage & AV, Logistics, Marketing, Reserves).
   - Over-budget warning triggers and burn rate trackers.
 - **Fest Chatbot**:
-  - Floating chat widget calls Gemini with the active fest profile, events, venues, and budget for natural-language answers.
-  - Falls back to local data lookups if Gemini is unavailable and does not invent missing fest details.
+  - Floating chat widget calls Groq with the active fest profile, events, venues, and budget for natural-language answers.
+  - Falls back to local data lookups if Groq is unavailable and does not invent missing fest details.
 - **Security & Authorization**:
   - Firebase Authentication with Google Sign-In.
   - Hardened Cloud Firestore Security Rules implementing Attribute-Based Access Control and Master Gate relational integrity.
@@ -29,7 +29,7 @@ Built for Indian engineering colleges (IITs, NITs, BITS, and technical universit
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS v4, Lucide React, Recharts
 - **Backend**: Express server with Vite middleware mode, Node 22+
 - **Database & Auth**: Cloud Firestore, Firebase Authentication
-- **AI Integration**: `@google/genai` TypeScript SDK (model `gemini-3.8-flash`)
+- **AI Integration**: Groq Chat Completions API (model `llama-3.3-70b-versatile`)
 - **Testing**: `node:test` and `node:assert/strict` unit tests
 
 ## Getting Started
@@ -39,7 +39,7 @@ Built for Indian engineering colleges (IITs, NITs, BITS, and technical universit
    npm install
    ```
 
-2. To enable AI-generated answers, copy `.env.example` to `.env` and add your own `GEMINI_API_KEY` to `.env`. Keep `.env` private and never commit it. Without the key, the local fest FAQ fallback remains available.
+2. To enable AI-generated answers, copy `.env.example` to `.env` and add your own `GROQ_API_KEY` to `.env`. Keep `.env` private and never commit it. Without the key, the local fest FAQ fallback remains available.
 
 3. Run unit tests:
    ```bash

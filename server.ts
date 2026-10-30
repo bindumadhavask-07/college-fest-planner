@@ -23,14 +23,14 @@ app.use(express.json({ limit: '1mb' }));
 
 // Grounded fest assistant endpoint. The API key stays on the server.
 app.post('/api/ai/chat', async (req: Request, res: Response) => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
 
   // Genuine integration check: if API key is not supplied or is placeholder
-  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey.trim() === '') {
+  if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY' || apiKey.trim() === '') {
     return res.status(503).json({
-      error: 'GEMINI_API_NOT_CONFIGURED',
+      error: 'GROQ_API_NOT_CONFIGURED',
       status: 'pending_configuration',
-      message: 'Gemini AI API key is not configured in the server environment. Add GEMINI_API_KEY to your environment variables or AI Studio Secrets panel.',
+      message: 'Groq API key is not configured. Add GROQ_API_KEY to your local .env file.',
       contract: { method: 'POST', endpoint: '/api/ai/chat' }
     });
   }
@@ -51,9 +51,6 @@ app.post('/api/ai/chat', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'The latest chat message must contain text.' });
     }
 
-    const { GoogleGenAI } = await import('@google/genai');
-    const ai = new GoogleGenAI({ apiKey });
-
     const systemInstruction = `You are the helpful AI fest assistant for students and organizers. Answer natural-language questions about dates, venues, program schedules, breaks, contacts, requirements, facilities, budgets, and planning using the fest data below.
 
 Grounding rules:
@@ -66,38 +63,36 @@ Grounding rules:
 Current fest data (JSON):
 ${JSON.stringify(festContext || {}, null, 2)}`;
     
-    // Set a timeout so a stalled provider does not leave the chat waiting.
-    const generatePromise = ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: safeMessages,
-      config: {
-        systemInstruction,
+    const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'system', content: systemInstruction }, ...safeMessages],
         temperature: 0.3,
-      }
+        max_tokens: 1200
+      }),
+      signal: AbortSignal.timeout(20000)
     });
-
-    let timeoutId: ReturnType<typeof setTimeout>;
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error('TIMEOUT_EXCEEDED')), 20000);
-    });
-    let response: any;
-    try {
-      response = await Promise.race([generatePromise, timeoutPromise]);
-    } finally {
-      clearTimeout(timeoutId!);
+    const result: any = await groqResponse.json().catch(() => ({}));
+    if (!groqResponse.ok) {
+      throw new Error(result.error?.message || `Groq request failed with HTTP ${groqResponse.status}`);
     }
 
     return res.json({
-      reply: response.text || 'No response generated.',
-      model: 'gemini-3.8-flash',
+      reply: result.choices?.[0]?.message?.content || 'No response generated.',
+      model: 'llama-3.3-70b-versatile',
       timestamp: new Date().toISOString()
     });
   } catch (err: any) {
-    console.error('Error invoking Gemini API:', err?.message || err);
+    console.error('Error invoking Groq API:', err?.message || err);
     return res.status(503).json({
       error: 'AI_SERVICE_UNAVAILABLE',
       status: 'ai_service_unavailable',
-      message: 'The AI assistant could not reach Gemini. Check the server API key and network connection, then try again.',
+      message: 'The AI assistant could not reach Groq. Check the GROQ_API_KEY and network connection, then try again.',
       contract: {
         method: 'POST',
         endpoint: '/api/ai/chat',
@@ -110,9 +105,9 @@ ${JSON.stringify(festContext || {}, null, 2)}`;
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
   const isKeyConfigured = Boolean(
-    process.env.GEMINI_API_KEY &&
-    process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY' &&
-    process.env.GEMINI_API_KEY.trim() !== ''
+    process.env.GROQ_API_KEY &&
+    process.env.GROQ_API_KEY !== 'YOUR_GROQ_API_KEY' &&
+    process.env.GROQ_API_KEY.trim() !== ''
   );
 
   res.json({
@@ -124,7 +119,7 @@ app.get('/api/health', (req: Request, res: Response) => {
       firestorePersistence: true,
       googleAuth: true,
       schedulerConflictEngine: true,
-      aiCopilotConfigured: isKeyConfigured
+      groqAiConfigured: isKeyConfigured
     }
   });
 });
