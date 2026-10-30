@@ -16,6 +16,7 @@ import { SmartScheduler } from './components/SmartScheduler';
 import { BudgetPlanner } from './components/BudgetPlanner';
 import { AiCopilot } from './components/AiCopilot';
 import { FloatingFestChat } from './components/FloatingFestChat';
+import { CampusMap } from './components/CampusMap';
 import { ActiveTab, FestEvent, Venue } from './types';
 
 const MainAppContent: React.FC = () => {
@@ -63,6 +64,7 @@ const MainAppContent: React.FC = () => {
         {activeTab === 'events' && <EventManagement />}
 
         {activeTab === 'venues' && <VenueManagement />}
+        {activeTab === 'campus-map' && <CampusMap />}
 
         {activeTab === 'scheduler' && (
           <SmartScheduler onOpenEditEvent={handleOpenEditEvent} />
