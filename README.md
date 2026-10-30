@@ -29,7 +29,7 @@ Built for Indian engineering colleges (IITs, NITs, BITS, and technical universit
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS v4, Lucide React, Recharts
 - **Backend**: Express server with Vite middleware mode, Node 22+
 - **Database & Auth**: Cloud Firestore, Firebase Authentication
-- **AI Integration**: Groq Chat Completions API (model `llama-3.3-70b-versatile`)
+- **AI Integration**: Groq Chat Completions API (model `openai/gpt-oss-20b`)
 - **Testing**: `node:test` and `node:assert/strict` unit tests
 
 ## Getting Started

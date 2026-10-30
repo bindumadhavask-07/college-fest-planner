@@ -46,7 +46,7 @@ When `GROQ_API_KEY` is configured and valid:
 ```json
 {
   "reply": "Based on TechNova 2026's schedule, you currently have 1 critical venue collision: CodeSprint and Valorant LAN Championship have both requested the Alan Turing Computing Center. I recommend moving Valorant to Day 2 or shifting its start time to 18:30 after the hackathon wraps up.",
-  "model": "llama-3.3-70b-versatile",
+  "model": "openai/gpt-oss-20b",
   "timestamp": "2026-10-30T04:55:00.000Z"
 }
 ```

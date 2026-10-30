@@ -70,10 +70,10 @@ ${JSON.stringify(festContext || {}, null, 2)}`;
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-20b',
         messages: [{ role: 'system', content: systemInstruction }, ...safeMessages],
         temperature: 0.3,
-        max_tokens: 1200
+        max_completion_tokens: 1200
       }),
       signal: AbortSignal.timeout(20000)
     });
@@ -84,7 +84,7 @@ ${JSON.stringify(festContext || {}, null, 2)}`;
 
     return res.json({
       reply: result.choices?.[0]?.message?.content || 'No response generated.',
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-20b',
       timestamp: new Date().toISOString()
     });
   } catch (err: any) {
