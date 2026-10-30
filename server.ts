@@ -44,10 +44,10 @@ app.post('/api/ai/chat', async (req: Request, res: Response) => {
       });
     }
     const safeMessages = messages.slice(-12).map((message: any) => ({
-      role: message?.role === 'assistant' || message?.role === 'model' ? 'model' : 'user',
-      parts: [{ text: String(message?.content || '').slice(0, 4000) }]
+      role: message?.role === 'assistant' || message?.role === 'model' ? 'assistant' : 'user',
+      content: String(message?.content || '').slice(0, 4000)
     }));
-    if (!safeMessages[safeMessages.length - 1]?.parts[0].text.trim()) {
+    if (!safeMessages[safeMessages.length - 1]?.content.trim()) {
       return res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'The latest chat message must contain text.' });
     }
 
@@ -148,3 +148,4 @@ async function startServer() {
 }
 
 startServer();
+
