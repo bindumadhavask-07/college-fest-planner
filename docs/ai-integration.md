@@ -1,6 +1,6 @@
 # FESTOS AI - Copilot Integration Specification
 
-This document provides complete instructions for teammates or external microservices to connect with the **FESTOS AI Copilot** backend.
+This document describes the **FESTOS AI Fest Assistant** backend used by the floating student chatbot.
 
 ---
 
@@ -24,20 +24,17 @@ This document provides complete instructions for teammates or external microserv
   ],
   "festContext": {
     "festId": "fest_technova_2026",
-    "festName": "TechNova 2026",
-    "collegeName": "National Institute of Technology Karnataka Surathkal",
-    "totalBudget": 150000,
-    "eventsCount": 6,
-    "venuesCount": 4,
-    "activeConflictsCount": 1,
-    "categories": ["technical", "cultural", "keynote", "gaming"]
+    "fest": { "name": "TechNova 2026", "collegeName": "National Institute of Technology Karnataka Surathkal" },
+    "events": [],
+    "venues": [],
+    "budgetItems": []
   }
 }
 ```
 
 ### Request Fields:
 - `messages` (required, array): List of chat message objects containing `role` (`"user"` | `"assistant"`) and `content` (string).
-- `festContext` (optional, object): Active fest state injected from the client (total budget, dates, active conflict summaries, venue allocations) to ground model generation.
+- `festContext` (optional, object): Active fest profile plus event, venue, and budget records. This context grounds model answers in planner data.
 
 ---
 
@@ -49,7 +46,7 @@ When `GEMINI_API_KEY` is configured and valid:
 ```json
 {
   "reply": "Based on TechNova 2026's schedule, you currently have 1 critical venue collision: CodeSprint and Valorant LAN Championship have both requested the Alan Turing Computing Center. I recommend moving Valorant to Day 2 or shifting its start time to 18:30 after the hackathon wraps up.",
-  "model": "gemini-2.5-flash",
+  "model": "gemini-3.8-flash",
   "timestamp": "2026-10-30T04:55:00.000Z"
 }
 ```
