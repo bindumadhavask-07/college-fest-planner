@@ -43,7 +43,7 @@ export interface AiChatMessage {
   error?: boolean;
 }
 
-export type ActiveTab = 'overview' | 'fests' | 'events' | 'venues' | 'scheduler' | 'budget' | 'copilot' | 'campus-map';
+export type ActiveTab = 'overview' | 'fests' | 'events' | 'venues' | 'scheduler' | 'budget' | 'copilot' | 'campus-map' | 'qr-tickets';
 
 export type {
   Venue,

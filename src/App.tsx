@@ -17,6 +17,8 @@ import { BudgetPlanner } from './components/BudgetPlanner';
 import { AiCopilot } from './components/AiCopilot';
 import { FloatingFestChat } from './components/FloatingFestChat';
 import { CampusMap } from './components/CampusMap';
+import { QRTickets } from './components/QRTickets';
+import { TicketVerification } from './components/TicketVerification';
 import { ActiveTab, FestEvent, Venue } from './types';
 
 const MainAppContent: React.FC = () => {
@@ -65,6 +67,7 @@ const MainAppContent: React.FC = () => {
 
         {activeTab === 'venues' && <VenueManagement />}
         {activeTab === 'campus-map' && <CampusMap />}
+        {activeTab === 'qr-tickets' && <QRTickets />}
 
         {activeTab === 'scheduler' && (
           <SmartScheduler onOpenEditEvent={handleOpenEditEvent} />
@@ -108,6 +111,10 @@ const MainAppContent: React.FC = () => {
 };
 
 export default function App() {
+  // QR scans open a read-only public verification page.
+  if (window.location.pathname.startsWith('/ticket/verify/')) {
+    return <TicketVerification />;
+  }
   return (
     <FestProvider>
       <MainAppContent />

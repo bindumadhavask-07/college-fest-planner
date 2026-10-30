@@ -11,6 +11,7 @@ import {
   Calendar,
   MapPin,
   MapPinned,
+  TicketCheck,
   Clock,
   IndianRupee,
   Bot,
@@ -56,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'events', label: 'Events', icon: <Calendar className="w-4 h-4" /> },
     { id: 'venues', label: 'Venues', icon: <MapPin className="w-4 h-4" /> },
     { id: 'campus-map', label: 'Campus Map', icon: <MapPinned className="w-4 h-4" /> },
+    { id: 'qr-tickets', label: 'QR Tickets', icon: <TicketCheck className="w-4 h-4" /> },
     {
       id: 'scheduler',
       label: 'Scheduler',
