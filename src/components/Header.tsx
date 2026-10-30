@@ -10,6 +10,7 @@ import {
   Sparkles,
   Calendar,
   MapPin,
+  MapPinned,
   Clock,
   IndianRupee,
   Bot,
@@ -54,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'fests', label: 'Fest Profile', icon: <Building2 className="w-4 h-4" /> },
     { id: 'events', label: 'Events', icon: <Calendar className="w-4 h-4" /> },
     { id: 'venues', label: 'Venues', icon: <MapPin className="w-4 h-4" /> },
+    { id: 'campus-map', label: 'Campus Map', icon: <MapPinned className="w-4 h-4" /> },
     {
       id: 'scheduler',
       label: 'Scheduler',
