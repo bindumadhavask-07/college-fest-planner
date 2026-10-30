@@ -15,7 +15,7 @@ const formatDate = (value?: string) => value
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const eventDetails = (event: FestEvent) => `${event.title} — ${formatDate(event.date)}, ${formatTime(event.startTime)} to ${formatTime(event.endTime)}${event.venueName ? `, at ${event.venueName}` : ''}.`;
 
-function answerQuestion(question: string, fest: any, events: FestEvent[], venues: any[]) {
+export function answerQuestion(question: string, fest: any, events: FestEvent[], venues: any[]) {
   const q = normalize(question);
   const sorted = [...events].sort((a, b) => (a.date + (a.startTime || '')).localeCompare(b.date + (b.startTime || '')));
   if (/\b(hi|hello|hey|good morning|good evening)\b/.test(q)) return `Hi! Ask me about ${fest.name}: event times, venues, dates, breaks, or the schedule.`;

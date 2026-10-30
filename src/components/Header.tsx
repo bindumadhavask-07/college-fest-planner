@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
       badge: conflicts.length > 0 ? conflicts.length : undefined
     },
     { id: 'budget', label: 'Budget Planner', icon: <IndianRupee className="w-4 h-4" /> },
-    { id: 'copilot', label: 'AI Copilot', icon: <Bot className="w-4 h-4" /> }
+    { id: 'copilot', label: 'Fest Chatbot', icon: <Bot className="w-4 h-4" /> }
   ];
 
   return (
