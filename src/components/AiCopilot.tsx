@@ -9,12 +9,25 @@ type FestInfo = {
   collegeName?: string;
   startDate?: string;
   endDate?: string;
+  totalBudget?: number;
+  description?: string;
+  status?: string;
+  committee?: string[];
 };
 
 type VenueInfo = {
   id: string;
   name: string;
   location?: string;
+  capacity?: number;
+  facilities?: string[];
+  availableStart?: string;
+  availableEnd?: string;
+  pricingPerHour?: number;
+};
+
+type BudgetInfo = {
+  spentAmount?: number;
 };
 
 type ChatEvent = FestEvent & {
@@ -22,11 +35,12 @@ type ChatEvent = FestEvent & {
   leadCoordinator?: string;
   leadContact?: string;
   requiredResources?: string[];
+  estimatedCost?: number;
+  expectedParticipants?: number;
 };
 
 const normalize = (value: string) =>
-  value
-    .toLowerCase()
+  value.toLowerCase()
     .replace(/[^a-z0-9 ]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -37,12 +51,10 @@ const formatTime = (value?: string) => {
   const [hours, minutes = 0] = value.split(':').map(Number);
 
   if (
-    !Number.isFinite(hours) ||
-    !Number.isFinite(minutes) ||
-    hours < 0 ||
-    hours > 23 ||
-    minutes < 0 ||
-    minutes > 59
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 || hours > 23 ||
+    minutes < 0 || minutes > 59
   ) {
     return value;
   }
@@ -54,9 +66,7 @@ const formatTime = (value?: string) => {
 
 const formatDate = (value?: string) => {
   if (!value) return 'date not specified';
-
   const date = new Date(`${value}T12:00:00`);
-
   if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString(undefined, {
@@ -66,6 +76,11 @@ const formatDate = (value?: string) => {
     year: 'numeric',
   });
 };
+
+const money = (value?: number) =>
+  value == null || !Number.isFinite(Number(value))
+    ? 'not listed'
+    : `₹${Number(value).toLocaleString('en-IN')}`;
 
 const timestamp = () =>
   new Date().toLocaleTimeString([], {
@@ -78,13 +93,11 @@ export function answerQuestion(
   fest: FestInfo | null | undefined,
   events: FestEvent[],
   venues: VenueInfo[],
+  budgetItems?: BudgetInfo[],
 ): string {
-  if (!fest) {
-    return 'Please select a fest first so I can show its information.';
-  }
+  if (!fest) return 'Please select a fest first.';
 
   const q = normalize(question);
-
   if (!q) return 'Please type a question about your fest.';
 
   const sorted: ChatEvent[] = [...events].sort((a, b) =>
@@ -106,89 +119,80 @@ export function answerQuestion(
     }.`;
   };
 
-  const showSchedule = () =>
-    sorted.length
-      ? `Here are the ${sorted.length} events for ${fest.name}:\n\n${sorted
-          .map((event, index) => `${index + 1}. ${eventDetails(event)}`)
-          .join('\n\n')}`
-      : 'There are no events scheduled yet. Add an event in Event Management and ask me again.';
+  const listEvents = (items: ChatEvent[]) =>
+    items.length
+      ? items.map((item, index) =>
+          `${index + 1}. ${eventDetails(item)}`,
+        ).join('\n\n')
+      : 'No matching events are listed in the current schedule.';
 
-  const asksLocation = /\b(where|locations?|venues?)\b/.test(q);
-  const asksCount = /\b(how many|number of|count)\b/.test(q);
-  const mentionsEvents = /\b(events?|programs?|activities|activity)\b/.test(q);
+  const asksLocation = /\b(where|locations?|venues?|address)\b/.test(q);
+  const asksCount = /\b(how many|number of|count|total)\b/.test(q);
+  const mentionsEvents =
+    /\b(events?|programs?|activities|activity|competitions?)\b/.test(q);
   const mentionsFest = /\b(fest|festival)\b/.test(q);
-  const asksTime = /\b(time|timing|timings)\b/.test(q);
+  const asksSchedule =
+    mentionsEvents || /\b(schedule|timetable|agenda)\b/.test(q) ||
+    /\b(what is happening|whats happening)\b/.test(q);
 
   if (/^(hi|hello|hey|good morning|good evening)$/.test(q)) {
-    return `Hi! I’m the ${fest.name} Fest Assistant. Ask me about events, timings, venues, dates, coordinators, or breaks.`;
+    return `Hi! I can help with ${fest.name} events, dates, venues, contacts, requirements, and budget.`;
   }
 
-  if (asksCount && mentionsEvents) {
-    return `There ${events.length === 1 ? 'is' : 'are'} ${
-      events.length
-    } event${events.length === 1 ? '' : 's'} listed for ${fest.name}.`;
+  if (/^(thanks|thank you|thankyou)$/.test(q)) {
+    return 'You’re welcome! Ask me if you need another fest detail.';
   }
 
-  if (asksCount && /\bvenues?\b/.test(q)) {
-    return `There ${venues.length === 1 ? 'is' : 'are'} ${
-      venues.length
-    } venue${venues.length === 1 ? '' : 's'} listed for ${fest.name}.`;
-  }
-
-  // Prefer a complete event title, then distinctive title words.
-  // Generic words such as "event" must not match an arbitrary event.
-  const ignoredWords = new Set([
-    'the',
-    'and',
-    'for',
-    'with',
-    'event',
-    'events',
-    'program',
-    'programs',
-    'fest',
-    'festival',
-    'day',
+  // Look for a named event before general schedule or budget answers.
+  const stopWords = new Set([
+    'what', 'when', 'where', 'which', 'show', 'tell', 'give',
+    'about', 'time', 'date', 'does', 'the', 'for', 'from',
+    'with', 'this', 'that', 'event', 'events', 'program',
+    'programs', 'start', 'end', 'venue', 'contact', 'please',
+    'can', 'you', 'who', 'how', 'much', 'many', 'need',
+    'required', 'fest', 'festival', 'day', 'and',
   ]);
 
   const paddedQuestion = ` ${q} `;
-
-  const fullTitleMatches = sorted.filter(event => {
-    const title = normalize(event.title);
-    return title && paddedQuestion.includes(` ${title} `);
+  const fullMatches = sorted.filter(item => {
+    const title = normalize(item.title);
+    return title.length > 0 && paddedQuestion.includes(` ${title} `);
   });
 
-  const matches = fullTitleMatches.length
-    ? fullTitleMatches
-    : sorted.filter(event =>
-        normalize(event.title)
-          .split(' ')
-          .some(
-            word =>
-              word.length > 3 &&
-              !ignoredWords.has(word) &&
-              paddedQuestion.includes(` ${word} `),
-          ),
-      );
+  const questionWords = new Set(
+    q.split(' ').filter(word => word.length > 2 && !stopWords.has(word)),
+  );
 
-  if (matches.length > 1) {
-    return `I found several matching events. Please ask using the full event name:\n\n${matches
-      .map(event => `• ${event.title}`)
-      .join('\n')}`;
+  const scored = sorted.map(item => ({
+    item,
+    score: normalize(item.title).split(' ').filter(
+      word => !stopWords.has(word) && questionWords.has(word),
+    ).length,
+  })).filter(match => match.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  const eventMatches = fullMatches.length
+    ? fullMatches
+    : scored.filter(match => match.score === scored[0]?.score)
+        .map(match => match.item);
+
+  if (eventMatches.length > 1) {
+    return `Which event do you mean?\n\n${eventMatches
+      .map(item => `• ${item.title}`).join('\n')}`;
   }
 
-  const event = matches[0];
+  const event = eventMatches[0];
 
   if (event) {
     if (asksLocation) {
       const venue = getVenue(event);
-      const venueName = event.venueName || venue?.name;
+      const name = event.venueName || venue?.name;
 
-      return venueName
-        ? `${event.title} is at ${venueName}${
+      return name
+        ? `${event.title} is at ${name}${
             venue?.location ? `, ${venue.location}` : ''
           }.`
-        : `A venue hasn’t been listed for ${event.title} yet.`;
+        : `A venue hasn’t been assigned to ${event.title} yet.`;
     }
 
     if (/\b(who|contact|coordinator|organizer|organiser)\b/.test(q)) {
@@ -196,16 +200,129 @@ export function answerQuestion(
         ? `${event.title} is coordinated by ${event.leadCoordinator}${
             event.leadContact ? ` (${event.leadContact})` : ''
           }.`
-        : `A coordinator is not listed for ${event.title} yet.`;
+        : `A coordinator is not listed for ${event.title}.`;
     }
 
-    if (/\b(resources?|need|require|requirements?|bring)\b/.test(q)) {
+    if (/\b(resources?|need|require|requirements?|bring|equipment|facilities)\b/.test(q)) {
       return event.requiredResources?.length
-        ? `For ${event.title}: ${event.requiredResources.join(', ')}.`
+        ? `Requirements for ${event.title}: ${event.requiredResources.join(', ')}.`
         : `No special requirements are listed for ${event.title}.`;
     }
 
+    if (/\b(cost|budget|expense|price)\b/.test(q)) {
+      return `Estimated cost for ${event.title}: ${money(event.estimatedCost)}.`;
+    }
+
+    if (/\b(participants?|participation|attend|people|capacity|register)\b/.test(q)) {
+      return `Expected participation for ${event.title}: ${
+        event.expectedParticipants ?? 'not listed'
+      }.`;
+    }
+
     return eventDetails(event);
+  }
+
+  // Preserve the date's hyphens by reading the original question.
+  const dateMatch = question.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  const dayMatch = q.match(/\bday\s*(\d+)\b/);
+
+  if (asksSchedule && (dateMatch || dayMatch)) {
+    let targetDate = dateMatch?.[1];
+
+    if (!targetDate) {
+      const day = Number(dayMatch?.[1]);
+      const start = new Date(`${fest.startDate}T12:00:00`);
+
+      if (!Number.isInteger(day) || day < 1 || Number.isNaN(start.getTime())) {
+        return 'Please use a valid fest day, such as “Show the schedule for day 1”. The fest start date must also be set.';
+      }
+
+      start.setDate(start.getDate() + day - 1);
+      targetDate = [
+        start.getFullYear(),
+        String(start.getMonth() + 1).padStart(2, '0'),
+        String(start.getDate()).padStart(2, '0'),
+      ].join('-');
+    }
+
+    const matchingEvents = sorted.filter(item => item.date === targetDate);
+
+    if (asksCount) {
+      return `${matchingEvents.length} events are listed for ${formatDate(targetDate)}.`;
+    }
+
+    return `Schedule for ${formatDate(targetDate)}:\n\n${listEvents(matchingEvents)}`;
+  }
+
+  // Handle questions about a named venue.
+  const venueMatches = venues.map(venue => {
+    const name = normalize(venue.name);
+    const exact = name.length > 0 && paddedQuestion.includes(` ${name} `);
+    const score = exact ? 1000 : name.split(' ').filter(
+      word => word.length > 2 && !stopWords.has(word) &&
+        paddedQuestion.includes(` ${word} `),
+    ).length;
+
+    return { venue, score };
+  }).filter(match => match.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  const bestVenues = venueMatches.filter(
+    match => match.score === venueMatches[0]?.score,
+  );
+
+  if (bestVenues.length > 1) {
+    return `Which venue do you mean?\n\n${bestVenues
+      .map(match => `• ${match.venue.name}`).join('\n')}`;
+  }
+
+  const venue = bestVenues[0]?.venue;
+
+  if (venue) {
+    if (mentionsEvents || /\b(schedule|timetable)\b/.test(q)) {
+      const venueEvents = sorted.filter(item =>
+        item.venueId === venue.id ||
+        normalize(item.venueName || '') === normalize(venue.name),
+      );
+
+      return asksCount
+        ? `${venueEvents.length} events are listed at ${venue.name}.`
+        : `Events at ${venue.name}:\n\n${listEvents(venueEvents)}`;
+    }
+
+    if (/\b(capacity|how many|people|seats|hold)\b/.test(q)) {
+      return `${venue.name} capacity: ${venue.capacity ?? 'not listed'}.`;
+    }
+
+    if (/\b(facility|facilities|equipment|resources?)\b/.test(q)) {
+      return `${venue.name} facilities: ${venue.facilities?.join(', ') || 'not listed'}.`;
+    }
+
+    if (/\b(cost|price|rate|rent|how much)\b/.test(q)) {
+      return `${venue.name} hourly rate: ${money(venue.pricingPerHour)}.`;
+    }
+
+    if (/\b(hours?|open|available|time)\b/.test(q)) {
+      return `${venue.name} has listed hours from ${formatTime(
+        venue.availableStart,
+      )} to ${formatTime(venue.availableEnd)}. Check the schedule for existing bookings.`;
+    }
+
+    return `${venue.name}${
+      venue.location ? ` is located at ${venue.location}` : ''
+    }. Capacity: ${venue.capacity ?? 'not listed'}.${
+      venue.facilities?.length
+        ? ` Facilities: ${venue.facilities.join(', ')}.`
+        : ''
+    }`;
+  }
+
+  if (asksCount && mentionsEvents) {
+    return `${events.length} events are listed for ${fest.name}.`;
+  }
+
+  if (asksCount && /\b(venues?|halls?|locations?)\b/.test(q)) {
+    return `${venues.length} venues are listed for ${fest.name}.`;
   }
 
   if (/\b(lunch|break|breaks|meal|meals)\b/.test(q)) {
@@ -216,34 +333,54 @@ export function answerQuestion(
     );
 
     return breaks.length
-      ? breaks.map(eventDetails).join('\n\n')
-      : 'No lunch or break time is listed in the current schedule. Please check with the organizers.';
+      ? listEvents(breaks)
+      : 'No lunch or break time is listed. Please check with the organizers.';
+  }
+
+  if (/\b(budget|funding|funds|spending|spent|money)\b/.test(q)) {
+    const total = `The total fest budget is ${money(fest.totalBudget)}.`;
+
+    if (!budgetItems) {
+      return `${total} Spending data has not been supplied to this chat.`;
+    }
+
+    const spent = budgetItems.reduce(
+      (sum, item) => sum + (Number(item.spentAmount) || 0), 0,
+    );
+
+    return `${total} ${
+      budgetItems.length
+        ? `Tracked spending is ${money(spent)} across ${budgetItems.length} budget items.`
+        : 'No budget items are listed yet.'
+    }`;
+  }
+
+  if (/\b(committee|committees|organizer|organiser|team)\b/.test(q)) {
+    return fest.committee?.length
+      ? `The listed committees are: ${fest.committee.join(', ')}.`
+      : 'Committee details are not listed yet.';
+  }
+
+  if (/description|about the fest|what is .*fest|tell me about/.test(q)) {
+    return fest.description ||
+      `${fest.name} is a ${fest.status || 'planned'} fest${
+        fest.collegeName ? ` at ${fest.collegeName}` : ''
+      }.`;
   }
 
   if (asksLocation && mentionsFest && !mentionsEvents) {
-    const location = fest.collegeName
-      ? `${fest.name} is at ${fest.collegeName}.`
-      : `A college location has not been listed for ${fest.name}.`;
-
-    const venueList = venues.length
-      ? venues
-          .map(
-            venue =>
-              `• ${venue.name}${
-                venue.location ? ` — ${venue.location}` : ''
-              }`,
-          )
-          .join('\n')
-      : 'No venues are listed yet.';
-
-    return `${location}\n\nAvailable venues:\n${venueList}`;
+    return `${fest.name}${
+      fest.collegeName ? ` is hosted at ${fest.collegeName}` : ''
+    }.\n\nListed venues:\n${
+      venues.map(item =>
+        `• ${item.name}${item.location ? ` — ${item.location}` : ''}`,
+      ).join('\n') || 'No venues are listed yet.'
+    }`;
   }
 
-  // Handle start-time questions before general fest-date questions.
   if (
     mentionsFest &&
-    (asksTime || /\b(start|begin)\b/.test(q)) &&
-    !/\b(date|dates)\b/.test(q)
+    /\b(what time|start time|when does.*start|when does.*begin)\b/.test(q)
   ) {
     const first = sorted.find(item => item.startTime);
 
@@ -252,70 +389,51 @@ export function answerQuestion(
       : 'No event start time is listed yet.';
   }
 
-  if (
-    mentionsFest &&
-    /\b(when|date|dates|start|begin|end|finish)\b/.test(q)
-  ) {
-    return `${fest.name} runs from ${formatDate(
-      fest.startDate,
-    )} to ${formatDate(fest.endDate)}.`;
+  if (mentionsFest && /\b(when|dates?|start|begin|end|finish|day)\b/.test(q)) {
+    return `${fest.name} runs from ${formatDate(fest.startDate)} to ${formatDate(fest.endDate)}.`;
   }
 
-  if (asksLocation) {
+  if (asksLocation || /\b(venues?|halls?)\b/.test(q)) {
     if (mentionsEvents) {
       return sorted.length
-        ? `Event venues:\n\n${sorted
-            .map(
-              item =>
-                `• ${item.title} — ${
-                  item.venueName ||
-                  getVenue(item)?.name ||
-                  'Venue not assigned'
-                }`,
-            )
-            .join('\n')}`
+        ? `Event venues:\n\n${sorted.map(item =>
+            `• ${item.title} — ${
+              item.venueName || getVenue(item)?.name || 'Venue not assigned'
+            }`,
+          ).join('\n')}`
         : 'There are no events scheduled yet.';
     }
 
     return venues.length
-      ? `Available venues:\n\n${venues
-          .map(
-            venue =>
-              `• ${venue.name}${
-                venue.location ? ` — ${venue.location}` : ''
-              }`,
-          )
-          .join('\n')}`
+      ? `Available venues:\n\n${venues.map(item =>
+          `• ${item.name}${item.location ? ` — ${item.location}` : ''}`,
+        ).join('\n')}`
       : 'No venues are listed yet.';
   }
 
-  if (
-    mentionsEvents ||
-    /\b(schedule|timetable|agenda)\b/.test(q) ||
-    /\bwhat is happening|whats happening\b/.test(q)
-  ) {
-    return showSchedule();
+  if (asksSchedule) {
+    return `Schedule for ${fest.name}:\n\n${listEvents(sorted)}`;
+  }
+
+  if (/status|fest called|name of the fest/.test(q)) {
+    return `${fest.name} is currently marked as ${fest.status || 'not specified'}.`;
   }
 
   if (/\b(help|what can you do)\b/.test(q)) {
-    return 'You can ask me:\n\n• What are the events?\n• Show me the schedule\n• Where is the fest?\n• How many events are there?\n• When is lunch break?\n• Where is [event name]?\n• Who coordinates [event name]?';
+    return 'Try asking:\n\n• What are the events?\n• Show the schedule for day 1\n• Where is the fest?\n• What is the total budget?\n• Where is [event name]?\n• Who coordinates [event name]?\n• What facilities does [venue name] have?';
   }
 
-  if (/^(thanks|thank you|thankyou)$/.test(q)) {
-    return 'You’re welcome! Ask me if you need another fest detail.';
-  }
-
-  return 'I couldn’t find that in the current fest information. Try asking for the schedule, fest dates, venues, or a specific event by name.';
+  return `I couldn’t find that detail for ${fest.name}. Ask about the schedule, dates, a named event, venues, contacts, requirements, or budget. Details not entered in the planner need to be confirmed with an organizer.`;
 }
 
 export const AiCopilot: React.FC = () => {
-  const { activeFest, events, venues } = useFest();
+  const { activeFest, events, venues, budgetItems } = useFest();
 
   const [messages, setMessages] = useState<AiChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Hi! I’m your Fest Assistant. Ask me about events, timings, venues, dates, or breaks.',
+      content: 'Hi! I’m your Fest Assistant. Ask me about events, venues, dates, contacts, or budget.',
       timestamp: timestamp(),
     },
   ]);
@@ -327,8 +445,8 @@ export const AiCopilot: React.FC = () => {
   const suggestions = [
     'What are the events?',
     'Where is the fest?',
-    'When is lunch break?',
-    'Show me the schedule',
+    'What is the total budget?',
+    'Show the schedule for day 1',
   ];
 
   useEffect(() => {
@@ -341,12 +459,8 @@ export const AiCopilot: React.FC = () => {
 
     const now = timestamp();
     const id = ++messageId.current;
-
     const answer = answerQuestion(
-      question,
-      activeFest,
-      events,
-      venues,
+      question, activeFest, events, venues, budgetItems,
     );
 
     setMessages(previous => [
@@ -380,11 +494,10 @@ export const AiCopilot: React.FC = () => {
           <div className="rounded-xl bg-violet-500/15 p-2 text-violet-300">
             <Sparkles size={20} />
           </div>
-
           <div>
             <h2 className="font-bold text-white">Fest Assistant</h2>
             <p className="text-xs text-slate-400">
-              Answers from the current fest schedule and venue details
+              Answers from your current fest data
             </p>
           </div>
         </div>
@@ -411,11 +524,9 @@ export const AiCopilot: React.FC = () => {
                     : 'bg-slate-800 text-violet-300'
                 }`}
               >
-                {message.role === 'user' ? (
-                  <UserRound size={16} />
-                ) : (
-                  <Bot size={16} />
-                )}
+                {message.role === 'user'
+                  ? <UserRound size={16} />
+                  : <Bot size={16} />}
               </div>
 
               <div
@@ -426,14 +537,12 @@ export const AiCopilot: React.FC = () => {
                 }`}
               >
                 {message.content}
-
                 <div className="mt-1 text-right text-[10px] opacity-60">
                   {message.timestamp}
                 </div>
               </div>
             </div>
           ))}
-
           <div ref={endRef} />
         </div>
 
@@ -458,7 +567,6 @@ export const AiCopilot: React.FC = () => {
             placeholder="Ask about the fest..."
             className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
           />
-
           <button
             type="submit"
             aria-label="Send message"
